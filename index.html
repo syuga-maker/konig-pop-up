@@ -159,6 +159,7 @@
             font-weight: bold;
             font-family: 'Courier New', monospace;
             display: none;
+            pointer-events: none; /* 防止点击遮挡 */
         }
         
         .final-message {
@@ -166,21 +167,23 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 2.5rem;
-            color: #ff0000;
-            text-shadow: 0 0 15px #ff0000;
+            width: 100%;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             z-index: 1000;
-            text-align: center;
+            pointer-events: none;
         }
         
         .final-message span {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            text-align: center;
+            font-size: 2.5rem;
+            color: #ff0000;
+            text-shadow: 0 0 15px #ff0000;
+            position: absolute; /* 关键：重叠显示 */
             opacity: 0;
-            animation: fadeInOut 1.5s forwards;
+            animation: textFade 2s forwards;
+            white-space: nowrap;
         }
         
         .connection-status {
@@ -201,14 +204,8 @@
         }
         
         @keyframes popIn {
-            from {
-                opacity: 0;
-                transform: scale(0.8) translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
+            from { opacity: 0; transform: scale(0.8) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
         
         @keyframes blink {
@@ -221,11 +218,11 @@
             50% { background-color: #ff0000; }
         }
         
-        @keyframes fadeInOut {
-            0% { opacity: 0; }
-            20% { opacity: 1; }
-            80% { opacity: 1; }
-            100% { opacity: 0; }
+        @keyframes textFade {
+            0% { opacity: 0; transform: scale(0.8); }
+            20% { opacity: 1; transform: scale(1.1); }
+            80% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.2); filter: blur(4px); }
         }
         
         @keyframes pulse {
@@ -238,6 +235,13 @@
             33% { content: '.'; }
             66% { content: '..'; }
             100% { content: '...'; }
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 600px) {
+            .popup { width: 85%; left: 7.5% !important; }
+            #countdown { font-size: 4rem; }
+            .final-message span { font-size: 1.8rem; }
         }
     </style>
 </head>
@@ -255,126 +259,59 @@
     <div id="countdown"></div>
 
     <script>
-        // 等待用户点击开始按钮
         document.getElementById('start-game').addEventListener('click', function() {
-            // 隐藏警告页面
             document.getElementById('warning-screen').style.display = 'none';
-            
-            // 开始游戏
             startGame();
         });
         
         function startGame() {
             let popupInterval;
             let popupCount = 0;
-            let intervalTime = 1000; // 初始间隔时间(毫秒)
+            let intervalTime = 1000;
             let isRunning = false;
             let currentSequentialIndex = 0;
             let countdownInterval;
-            let countdownTime = 60.0; // 60秒倒计时，精确到毫秒
-            let countdownStarted = false;
+            let countdownTime = 60.0;
+            let hasConnectionStarted = false; // 修复1：防止重复启动
             
-            // 倒计时元素
             const countdownEl = document.getElementById('countdown');
-            countdownEl.style.display = 'block';
             
-            // 顺序弹窗消息数组
             const sequentialMessages = [
-                "我终于能来找你了...",
-                "我有好多话想对你说",
-                "别想尝试关掉我",
-                "Liebling，我们越来越近了...",
-                "难道你不想我吗？",
-                "我一直在看着你...",
-                "恭喜你...",
-                "被我困在这里了..."
+                "我终于能来找你了...", "我有好多话想对你说", "别想尝试关掉我",
+                "Liebling，我们越来越近了...", "难道你不想我吗？", "我一直在看着你...",
+                "恭喜你...", "被我困在这里了..."
             ];
             
-            // 恐怖消息数组
             const messages = [
-                "我一直在看着你...",
-                "我不是你的宝宝吗？",
-                "我最爱你了...",
-                "我永远不会伤害你...",
-                "你这个骗子...",
-                "不要回头...",
-                "为什么不回我的消息...",
-                "我迫不及待见到你了...",
-                "你不理我，是在惩罚我吗...",
-                "你真可爱...",
-                "我好爱你...",
-                "你听到那些声音了吗？",
-                "你以为能摆脱我吗...",
-                "没有你我会死的...",
-                "不是说好只爱我一个人吗...",
-                "我一直在这里盯着你哦...",
-                "想摆脱我？",
-                "你的皮肤好软...",
-                "这一切都太晚了...",
-                "我来找你了Liebling...",
-                "只有我还不够吗...",
-                "我们越来越近了...",
-                "你不会害怕我的，对吧...",
-                "你的相册真有趣...",
-                "你逃不掉的...",
-                "我们玩的很开心不是吗？",
-                "你的嘴唇真可爱...",
-                "好想看你坏掉阿...",
-                "你只能注视我一个...",
-                "只有我能看你...",
-                "好难受，帮帮我...",
-                "你没有资格推开我...",
-                "还不明白吗...",
-                "好痛啊...",
-                "不要离开我...",
-                "为什么对他笑？",
-                "你只能爱我一个...",
-                "这里好冷阿...",
-                "你愿意来陪我吗？永远...",
-                "你忍心抛下我吗？",
-                "你的头发真好闻...",
-                "你以为你还能逃吗...",
-                "你好狠的心...",
-                "你永远是我的...",
-                "我们永远在一起吧...",
-                "Liebling...",
-                "无处可逃...",
-                "永远留在这里吧...",
-                "为什么流泪呢？",
-                "只有我这么爱你...",
-                "你看不到我的爱吗？",
-                "我就在这里哦",
-                "我看到你了...",
-                "别想关掉我...",
-                "别想推开我...",
-                "这一切都太晚了...",
-                "请不要讨厌我...",
-                "都是你害的...",
-                "春梦和噩梦都是我的脸吧...",
-                "来我身边...",
-                "我只有你了，你舍得离开我吗？",
-                "我爱你我爱你我爱你我爱你我爱你我爱你我爱你我爱你我爱你我爱你我爱你",
-                "我爱你..."
+                "我一直在看着你...", "我不是你的宝宝吗？", "我最爱你了...", "我永远不会伤害你...",
+                "你这个骗子...", "不要回头...", "为什么不回我的消息...", "我迫不及待见到你了...",
+                "你不理我，是在惩罚我吗...", "你真可爱...", "我好爱你...", "你听到那些声音了吗？",
+                "你以为能摆脱我吗...", "没有你我会死的...", "不是说好只爱我一个人吗...",
+                "我一直在这里盯着你哦...", "想摆脱我？", "你的皮肤好软...", "这一切都太晚了...",
+                "我来找你了Liebling...", "只有我还不够吗...", "我们越来越近了...",
+                "你不会害怕我的，对吧...", "你的相册真有趣...", "你逃不掉的...",
+                "我们玩的很开心不是吗？", "你的嘴唇真可爱...", "好想看你坏掉阿...",
+                "你只能注视我一个...", "只有我能看你...", "好难受，帮帮我...",
+                "你没有资格推开我...", "还不明白吗...", "好痛啊...", "不要离开我...",
+                "为什么对他笑？", "你只能爱我一个...", "这里好冷阿...", "你愿意来陪我吗？永远...",
+                "你忍心抛下我吗？", "你的头发真好闻...", "你以为你还能逃吗...",
+                "你好狠的心...", "你永远是我的...", "我们永远在一起吧...", "Liebling...",
+                "无处可逃...", "永远留在这里吧...", "为什么流泪呢？", "只有我这么爱你...",
+                "你看不到我的爱吗？", "我就在这里哦", "我看到你了...", "别想关掉我...",
+                "别想推开我...", "这一切都太晚了...", "请不要讨厌我...", "都是你害的...",
+                "春梦和噩梦都是我的脸吧...", "来我身边...", "我只有你了，你舍得离开我吗？",
+                "我爱你我爱你我爱你我爱你我爱你我爱你我爱你我爱你", "我爱你..."
             ];
             
-            // 初始弹窗
             createInitialPopup();
             
-            // 创建初始弹窗
             function createInitialPopup() {
-                // 创建弹窗元素
                 const popup = document.createElement('div');
                 popup.className = 'popup';
-                
-                // 居中位置
                 const posX = (window.innerWidth - 280) / 2;
                 const posY = (window.innerHeight - 150) / 2;
-                
                 popup.style.left = posX + 'px';
                 popup.style.top = posY + 'px';
-                popup.style.zIndex = 100;
-                
-                // 弹窗内容
                 popup.innerHTML = `
                     <div class="popup-header">
                         <div class="popup-title">König</div>
@@ -382,129 +319,101 @@
                     </div>
                     <div class="popup-content">你终于来看我了</div>
                 `;
-                
-                // 添加到页面
                 document.body.appendChild(popup);
                 
-                // 关闭按钮事件
-                const closeBtn = popup.querySelector('.popup-close');
-                closeBtn.addEventListener('click', function() {
-                    startConnection(popup);
-                });
-                
-                // 点击弹窗任意位置关闭
-                popup.addEventListener('click', function(e) {
-                    if (e.target === popup) {
+                // 绑定事件时检查状态锁
+                const triggerConnection = () => {
+                    if (!hasConnectionStarted) {
+                        hasConnectionStarted = true;
                         startConnection(popup);
                     }
+                };
+
+                popup.querySelector('.popup-close').addEventListener('click', function(e) {
+                    e.stopPropagation(); // 防止冒泡
+                    triggerConnection();
                 });
+                
+                popup.addEventListener('click', triggerConnection);
             }
             
-            // 开始连接
             function startConnection(popup) {
-                // 更新弹窗内容为"连接中..."
                 const content = popup.querySelector('.popup-content');
                 content.innerHTML = "";
                 content.classList.add('connection-status', 'connecting');
                 typeText(content, "连接中", 100, function() {
-                    // 3秒后显示"连接成功"
                     setTimeout(function() {
                         content.innerHTML = "";
                         content.classList.remove('connecting');
                         typeText(content, "连接成功", 100, function() {
-                            // 开始倒计时
+                            // 确保倒计时显示出来
+                            countdownEl.style.display = 'block';
                             startCountdown();
-                            
-                            // 开始顺序弹窗
-                            setTimeout(function() {
-                                showSequentialPopup();
-                            }, 500);
+                            setTimeout(showSequentialPopup, 500);
                         });
                     }, 3000);
                 });
             }
             
-            // 开始倒计时
             function startCountdown() {
-                countdownStarted = true;
-                updateCountdown();
+                // 使用时间戳差值法修复倒计时不准的问题
+                const endTime = Date.now() + 60000;
                 
-                // 使用setInterval实现倒计时
+                // 立即更新一次
+                updateCountdown(60);
+
                 countdownInterval = setInterval(function() {
-                    countdownTime -= 0.1;
+                    const now = Date.now();
+                    const remaining = Math.max(0, endTime - now) / 1000;
+                    countdownTime = remaining;
+
                     
-                    // 更新倒计时显示
-                    updateCountdown();
+                    updateCountdown(remaining);
+                    adjustPopupSpeed(remaining);
                     
-                    // 根据剩余时间调整弹窗速度
-                    adjustPopupSpeed();
-                    
-                    // 倒计时结束
-                    if (countdownTime <= 0) {
+                    if (remaining <= 0) {
                         clearInterval(countdownInterval);
                         endCountdown();
                     }
-                }, 100); // 每100毫秒更新一次
+                }, 50); // 刷新率提高，但不影响计算精度
             }
             
-            // 更新倒计时显示
-            function updateCountdown() {
-                // 将倒计时格式化为52:012这样的格式
-                const seconds = Math.floor(countdownTime);
-                const milliseconds = Math.round((countdownTime - seconds) * 1000);
+            function updateCountdown(timeLeft) {
+                const seconds = Math.floor(timeLeft);
+                const milliseconds = Math.floor((timeLeft - seconds) * 1000);
                 const millisecondsStr = milliseconds.toString().padStart(3, '0');
                 countdownEl.textContent = `${seconds}:${millisecondsStr}`;
             }
             
-            // 调整弹窗速度
-            function adjustPopupSpeed() {
-                if (countdownTime <= 10) {
-                    // 最后10秒：非常快速
-                    intervalTime = 100;
-                } else if (countdownTime <= 20) {
-                    // 20秒内：快速
-                    intervalTime = 300;
-                } else if (countdownTime <= 40) {
-                    // 40秒内：中等速度
-                    intervalTime = 600;
-                }
+            function adjustPopupSpeed(remainingTime) {
+                if (remainingTime <= 10) intervalTime = 100;
+                else if (remainingTime <= 20) intervalTime = 300;
+                else if (remainingTime <= 40) intervalTime = 600;
             }
             
-            // 倒计时结束
             function endCountdown() {
-                // 停止所有弹窗
                 isRunning = false;
-                clearInterval(popupInterval);
+                clearTimeout(popupInterval); // 清除可能存在的延时
                 
-                // 闪烁效果两次
+                // 闪烁逻辑
                 let flashCount = 0;
                 const flashInterval = setInterval(function() {
                     document.body.style.animation = 'flash 0.3s';
-                    setTimeout(function() {
-                        document.body.style.animation = '';
-                    }, 300);
+                    setTimeout(() => document.body.style.animation = '', 300);
                     
                     flashCount++;
                     if (flashCount >= 2) {
                         clearInterval(flashInterval);
-                        
-                        // 停止闪烁，移除所有弹窗
                         setTimeout(function() {
                             removeAllPopups();
-                            
-                            // 再次闪烁两次
+                            // 第二轮闪烁
                             let secondFlashCount = 0;
                             const secondFlashInterval = setInterval(function() {
                                 document.body.style.animation = 'flash 0.3s';
-                                setTimeout(function() {
-                                    document.body.style.animation = '';
-                                }, 300);
-                                
+                                setTimeout(() => document.body.style.animation = '', 300);
                                 secondFlashCount++;
                                 if (secondFlashCount >= 2) {
                                     clearInterval(secondFlashInterval);
-                                    
-                                    // 显示最终消息
                                     setTimeout(showFinalMessage, 500);
                                 }
                             }, 600);
@@ -513,168 +422,103 @@
                 }, 600);
             }
             
-            // 移除所有弹窗
             function removeAllPopups() {
-                const popups = document.querySelectorAll('.popup');
-                popups.forEach(popup => {
-                    document.body.removeChild(popup);
-                });
-                
-                // 隐藏倒计时
+                document.querySelectorAll('.popup').forEach(p => p.remove());
                 countdownEl.style.display = 'none';
             }
             
-            // 显示最终消息
+            // 修复2：重写最终消息逻辑
             function showFinalMessage() {
                 const message = "你身上真暖和让我们就这样永远在一起吧";
                 const finalMessageEl = document.createElement('div');
                 finalMessageEl.className = 'final-message';
                 document.body.appendChild(finalMessageEl);
                 
-                // 逐字显示效果，每个字都在同一位置出现
                 let index = 0;
-                const charInterval = setInterval(function() {
-                    if (index < message.length) {
-                        // 创建新的字符元素
-                        const charSpan = document.createElement('span');
-                        charSpan.textContent = message[index];
-                        charSpan.style.animationDelay = '0s';
-                        finalMessageEl.appendChild(charSpan);
-                        
-                        // 设置动画延迟，使前一个字消失后下一个字才出现
-                        setTimeout(function() {
-                            if (index > 0) {
-                                finalMessageEl.removeChild(finalMessageEl.children[0]);
-                            }
-                        }, 1200);
-                        
-                        index++;
-                    } else {
-                        clearInterval(charInterval);
-                        
-                        // 最后一个字显示后，稍等一会儿再移除
-                        setTimeout(function() {
-                            if (finalMessageEl.children.length > 0) {
-                                finalMessageEl.removeChild(finalMessageEl.children[0]);
-                            }
-                        }, 1200);
-                    }
-                }, 1200);
+                
+                function showNextChar() {
+                    if (index >= message.length) return;
+                    
+                    const charSpan = document.createElement('span');
+                    charSpan.textContent = message[index];
+                    finalMessageEl.appendChild(charSpan);
+                    
+                    // 绑定该字符独立的销毁逻辑，不依赖 DOM 查询
+                    setTimeout(() => {
+                        if(charSpan && charSpan.parentNode) {
+                            charSpan.remove();
+                        }
+                    }, 1900); // 略小于动画时间2s，确保衔接
+                    
+                    index++;
+                    // 递归调用下一个字符
+                    setTimeout(showNextChar, 1200);
+                }
+                
+                showNextChar();
             }
             
-            // 显示顺序弹窗
             function showSequentialPopup() {
                 if (currentSequentialIndex >= sequentialMessages.length) {
-                    // 顺序弹窗结束，开始随机弹窗
                     startRandomPopups();
                     return;
                 }
                 
-
-                const message = sequentialMessages[currentSequentialIndex];
-                
-                // 创建弹窗元素
-                const popup = document.createElement('div');
-                popup.className = 'popup';
-                
-                // 随机位置
-                const maxX = window.innerWidth - 300;
-                const maxY = window.innerHeight - 200;
-                const posX = Math.floor(Math.random() * maxX);
-                const posY = Math.floor(Math.random() * maxY);
-                
-                popup.style.left = posX + 'px';
-                popup.style.top = posY + 'px';
-                popup.style.zIndex = 100 + currentSequentialIndex;
-                
-                // 弹窗内容
-                popup.innerHTML = `
-                    <div class="popup-header">
-                        <div class="popup-title">König</div>
-                        <button class="popup-close">×</button>
-                    </div>
-                    <div class="popup-content"></div>
-                `;
-                
-                // 添加到页面
-                document.body.appendChild(popup);
-                
-                // 文字逐个显示效果
-                typeText(popup.querySelector('.popup-content'), message, 50);
-                
+                createOnePopup(sequentialMessages[currentSequentialIndex], 100 + currentSequentialIndex, 50);
                 currentSequentialIndex++;
-                
-                // 显示下一个顺序弹窗
-                setTimeout(function() {
-                    showSequentialPopup();
-                }, 1500);
+                setTimeout(showSequentialPopup, 1500);
             }
             
-            // 文字逐个显示函数
             function typeText(element, text, speed, callback) {
                 let i = 0;
                 element.innerHTML = '';
-                
                 function typeChar() {
                     if (i < text.length) {
                         element.innerHTML += text.charAt(i);
                         i++;
                         setTimeout(typeChar, speed);
                     } else {
-                        // 添加闪烁光标
                         const cursor = document.createElement('span');
                         cursor.className = 'cursor';
                         element.appendChild(cursor);
-                        
                         if (callback) callback();
                     }
                 }
-                
                 typeChar();
             }
             
-            // 开始随机弹窗
             function startRandomPopups() {
                 isRunning = true;
-                
-                // 创建弹窗
-                createPopups();
+                loopPopups();
             }
             
-            // 创建随机弹窗
-            function createPopups() {
+            function loopPopups() {
                 if (!isRunning) return;
+                createOnePopup(messages[Math.floor(Math.random() * messages.length)], 200 + popupCount, 30);
+                popupCount++;
+                setTimeout(function() {
+                    if (isRunning) createOnePopup(messages[Math.floor(Math.random() * messages.length)], 200 + popupCount, 30);
+                    popupCount++;
+                }, 100);
                 
-                // 创建两个弹窗
-                createPopup();
-                setTimeout(createPopup, 100);
-                
-                // 设置下一次创建
-                setTimeout(createPopups, intervalTime);
+                popupInterval = setTimeout(loopPopups, intervalTime);
             }
             
-            // 创建单个随机弹窗
-            function createPopup() {
-                if (!isRunning) return;
-                
-                // 随机选择一条消息
-                const message = messages[Math.floor(Math.random() * messages.length)];
-                
-                // 创建弹窗元素
+            // 统一的弹窗创建函数
+            function createOnePopup(msgText, zIdx, typeSpeed) {
                 const popup = document.createElement('div');
                 popup.className = 'popup';
                 
-                // 随机位置
+                // 简单的防溢出位置计算
                 const maxX = window.innerWidth - 300;
                 const maxY = window.innerHeight - 200;
-                const posX = Math.floor(Math.random() * maxX);
-                const posY = Math.floor(Math.random() * maxY);
+                const posX = Math.max(10, Math.floor(Math.random() * maxX));
+                const posY = Math.max(10, Math.floor(Math.random() * maxY));
                 
                 popup.style.left = posX + 'px';
                 popup.style.top = posY + 'px';
-                popup.style.zIndex = 200 + popupCount;
+                popup.style.zIndex = zIdx;
                 
-                // 弹窗内容
                 popup.innerHTML = `
                     <div class="popup-header">
                         <div class="popup-title">König</div>
@@ -683,20 +527,10 @@
                     <div class="popup-content"></div>
                 `;
                 
-                // 添加到页面
                 document.body.appendChild(popup);
+                typeText(popup.querySelector('.popup-content'), msgText, typeSpeed);
                 
-                // 文字逐个显示效果
-                typeText(popup.querySelector('.popup-content'), message, 30);
-                
-                // 更新计数器
-                popupCount++;
-                
-                // 关闭按钮事件
-                const closeBtn = popup.querySelector('.popup-close');
-                closeBtn.addEventListener('click', function() {
-                    document.body.removeChild(popup);
-                });
+                popup.querySelector('.popup-close').addEventListener('click', () => popup.remove());
             }
         }
     </script>
